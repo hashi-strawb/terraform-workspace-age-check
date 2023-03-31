@@ -82,7 +82,7 @@ resource "time_offset" "too_old" {
   for_each     = local.workspaces_and_creation_dates
   base_rfc3339 = each.value
 
-  offset_hours = 12
+  offset_hours = 2
 
   lifecycle {
     postcondition {
