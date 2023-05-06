@@ -1,9 +1,11 @@
 terraform {
   cloud {
-    organization = "fancycorp"
+    #   organization = "fancycorp"
+    organization = "lmhd"
 
     workspaces {
-      name = "workspace-ages"
+      #      name = "workspace-ages"
+      name = "age-check"
     }
   }
 
@@ -20,14 +22,23 @@ terraform {
     }
   }
 
-  # Because we're using "terraform_data"
-  required_version = ">= 1.4.0"
+  # Because we're using "plantimestamp"
+  required_version = ">= 1.5.0"
 }
 
 
 
+variable "org" {
+  default = "fancycorp"
+}
+
+variable "offset_hours" {
+  type    = number
+  default = 24
+}
+
 provider "tfe" {
-  organization = "fancycorp"
+  organization = var.org
 }
 
 
@@ -50,7 +61,7 @@ data "terracurl_request" "workspace" {
   for_each = data.tfe_workspace_ids.all.ids
 
   name = each.key
-  url  = "https://app.terraform.io/api/v2/organizations/fancycorp/workspaces/${each.key}"
+  url  = "https://app.terraform.io/api/v2/organizations/${var.org}/workspaces/${each.key}"
 
   method = "GET"
 
@@ -75,18 +86,18 @@ output "workspace_creation_dates" {
 }
 
 output "now" {
-  value = timestamp()
+  value = plantimestamp()
 }
 
 resource "time_offset" "too_old" {
   for_each     = local.workspaces_and_creation_dates
   base_rfc3339 = each.value
 
-  offset_hours = 12
+  offset_hours = var.offset_hours
 
   lifecycle {
     postcondition {
-      condition     = timecmp(self.rfc3339, timestamp()) > 0
+      condition     = timecmp(self.rfc3339, plantimestamp()) > 0
       error_message = "The workspace ${each.key} is old"
     }
   }
