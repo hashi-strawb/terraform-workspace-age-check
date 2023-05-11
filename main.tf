@@ -1,11 +1,11 @@
 terraform {
   cloud {
-    #   organization = "fancycorp"
-    organization = "lmhd"
+    organization = "fancycorp"
+    #organization = "lmhd"
 
     workspaces {
-      #      name = "workspace-ages"
-      name = "age-check"
+      name = "workspace-ages"
+      #name = "age-check"
     }
   }
 
@@ -41,6 +41,11 @@ provider "tfe" {
   organization = var.org
 }
 
+variable "workspace_ignore_tag" {
+  type    = string
+  default = "age-check:ignore"
+}
+
 
 
 #
@@ -74,20 +79,40 @@ data "terracurl_request" "workspace" {
 }
 
 locals {
+  workspaces = {
+    for k, ws in data.terracurl_request.workspace :
+    k => jsondecode(ws.response).data.attributes
+  }
+
+  workspaces_without_ignored = {
+    for k, ws in local.workspaces :
+    k => ws
+    # We are ignoring workspaces with this tag
+    if !contains(ws.tag-names, var.workspace_ignore_tag)
+  }
+
   workspaces_and_creation_dates = {
-    for k, v in data.terracurl_request.workspace :
+    for k, ws in local.workspaces_without_ignored :
     # Remove millisecond precision from timestamp
-    k => replace(jsondecode(v.response).data.attributes.created-at, "/....Z/", "Z")
+    k => replace(ws.created-at, "/....Z/", "Z")
   }
 }
+
+/*
+output "workspaces" {
+  value = local.workspaces_without_ignored
+}
+*/
 
 output "workspace_creation_dates" {
   value = local.workspaces_and_creation_dates
 }
 
+/*
 output "now" {
   value = plantimestamp()
 }
+*/
 
 resource "time_offset" "too_old" {
   for_each     = local.workspaces_and_creation_dates
