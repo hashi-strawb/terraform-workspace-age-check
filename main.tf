@@ -22,7 +22,7 @@ terraform {
     }
   }
 
-  # Because we're using "plantimestamp"
+  # Because we're using "plantimestamp", and check{}
   required_version = ">= 1.5.0"
 }
 
@@ -119,11 +119,31 @@ resource "time_offset" "too_old" {
   base_rfc3339 = each.value
 
   offset_hours = var.offset_hours
+}
 
-  lifecycle {
-    postcondition {
-      condition     = timecmp(self.rfc3339, plantimestamp()) > 0
-      error_message = "The workspace ${each.key} is old"
-    }
+locals {
+  old_workspaces = {
+    for workspace_name, offset in time_offset.too_old :
+    workspace_name => local.workspaces[workspace_name]
+    if timecmp(offset.rfc3339, plantimestamp()) < 0
+    && local.workspaces[workspace_name].resource-count > 0
+  }
+  old_workspace_names = keys(local.old_workspaces)
+}
+
+/*
+output "old_workspace_names" {
+  value = local.old_workspace_names
+}
+
+output "old_workspaces" {
+  value = local.old_workspaces
+}
+*/
+
+check "workspace_ages" {
+  assert {
+    condition     = length(local.old_workspace_names) == 0
+    error_message = "The following workspaces, with managed resources, are old: ${join(", ", local.old_workspace_names)}"
   }
 }
