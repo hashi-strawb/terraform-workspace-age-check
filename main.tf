@@ -96,6 +96,13 @@ locals {
     # Remove millisecond precision from timestamp
     k => replace(ws.created-at, "/....Z/", "Z")
   }
+
+  # The last state update
+  workspaces_and_modify_dates = {
+    for k, ws in local.workspaces_without_ignored :
+    # Remove millisecond precision from timestamp
+    k => replace(ws.latest-change-at, "/....Z/", "Z")
+  }
 }
 
 /*
@@ -108,6 +115,10 @@ output "workspace_creation_dates" {
   value = local.workspaces_and_creation_dates
 }
 
+output "workspace_modify_dates" {
+  value = local.workspaces_and_modify_dates
+}
+
 /*
 output "now" {
   value = plantimestamp()
@@ -115,7 +126,7 @@ output "now" {
 */
 
 resource "time_offset" "too_old" {
-  for_each     = local.workspaces_and_creation_dates
+  for_each     = local.workspaces_and_modify_dates
   base_rfc3339 = each.value
 
   offset_hours = var.offset_hours
@@ -128,6 +139,7 @@ locals {
     if timecmp(offset.rfc3339, plantimestamp()) < 0
     && local.workspaces[workspace_name].resource-count > 0
   }
+
   old_workspace_names = keys(local.old_workspaces)
 }
 
