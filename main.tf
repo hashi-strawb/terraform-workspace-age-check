@@ -17,8 +17,9 @@ terraform {
       source  = "EppO/environment"
       version = "1.3.4"
     }
-    terracurl = {
-      source = "devops-rob/terracurl"
+    http = {
+      source  = "hashicorp/http"
+      version = ">= 3.4.0, < 4.0.0"
     }
   }
 
@@ -61,27 +62,25 @@ data "environment_variables" "tfe_token" {
   filter = "TFE_TOKEN"
 }
 
-# Need TerraCurl to get created-at, because the TFE provider does not supply this info
-data "terracurl_request" "workspace" {
+# Need HTTP provider to get created-at, because the TFE provider does not supply this info
+data "http" "workspace" {
   for_each = data.tfe_workspace_ids.all.ids
 
-  name = each.key
-  url  = "https://app.terraform.io/api/v2/organizations/${var.org}/workspaces/${each.key}"
+  url = "https://app.terraform.io/api/v2/organizations/${var.org}/workspaces/${each.key}"
 
   method = "GET"
 
-  headers = {
+  request_headers = {
     Authorization = "Bearer ${data.environment_variables.tfe_token.items["TFE_TOKEN"]}"
     Content-Type  = "application/vnd.api+json"
   }
-  response_codes = [200]
 
 }
 
 locals {
   workspaces = {
-    for k, ws in data.terracurl_request.workspace :
-    k => jsondecode(ws.response).data.attributes
+    for k, ws in data.http.workspace :
+    k => jsondecode(ws.response_body).data.attributes
   }
 
   workspaces_without_ignored = {
