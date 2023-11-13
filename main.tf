@@ -15,7 +15,7 @@ terraform {
     }
     environment = {
       source  = "EppO/environment"
-      version = "1.3.4"
+      version = ">= 1.3.4, < 2.0.0"
     }
     http = {
       source  = "hashicorp/http"
